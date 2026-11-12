@@ -4,9 +4,9 @@ import streamlit as st
 st.set_page_config(page_title="Advanced AI Assistant", page_icon="✦")
 st.title("✦ Advanced AI Assistant")
 
-API_URL = "https://huggingface.co"
+API_URL = "https://groq.com"
 HEADERS = {
-    "Authorization": f"Bearer {st.secrets['HF_TOKEN']}",
+    "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}",
     "Content-Type": "application/json",
 }
 
@@ -30,7 +30,7 @@ if prompt := st.chat_input("Ask anything..."):
     with st.spinner("Thinking..."):
       try:
         payload = {
-            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "model": "llama-3.3-70b-versatile",
             "messages": st.session_state.messages,
             "max_tokens": 500,
         }
@@ -49,4 +49,5 @@ if prompt := st.chat_input("Ask anything..."):
           )
       except Exception as e:
         st.error(f"Error details: {e}")
+
 
