@@ -5,7 +5,6 @@ st.set_page_config(page_title="Advanced AI Assistant", page_icon="✦")
 st.title("✦ Advanced AI Assistant")
 
 API_URL = "https://groq.com"
-
 HEADERS = {
     "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}",
     "Content-Type": "application/json",
