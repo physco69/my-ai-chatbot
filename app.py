@@ -93,7 +93,7 @@ h1 {{
 st.markdown(mobile_css, unsafe_allow_html=True)
 
 # --- HEADER & CLEAR BUTTON ---
-col1, col2 = st.columns()
+col1, col2 = st.columns([4, 1])
 with col1:
   st.title("Sumedh's chatbot")
 with col2:
