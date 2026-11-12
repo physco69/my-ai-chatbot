@@ -27,9 +27,9 @@ if prompt := st.chat_input("Ask anything..."):
       try:
         chat_completion = client.chat.completions.create(
             messages=st.session_state.messages,
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-20b",
         )
-        reply = chat_completion.choices[0].message.content
+        reply = chat_completion.choices.message.content
         st.markdown(reply)
         st.session_state.messages.append(
             {"role": "assistant", "content": reply}
