@@ -1,13 +1,14 @@
-from openai import OpenAI
+import requests
 import streamlit as st
 
 st.set_page_config(page_title="Advanced AI Assistant", page_icon="✦")
 st.title("✦ Advanced AI Assistant")
 
-client = OpenAI(
-    base_url="https://huggingface.co",
-    api_key=st.secrets["HF_TOKEN"],
-)
+API_URL = "https://huggingface.co"
+HEADERS = {
+    "Authorization": f"Bearer {st.secrets['HF_TOKEN']}",
+    "Content-Type": "application/json",
+}
 
 if "messages" not in st.session_state:
   st.session_state.messages = [{
@@ -28,16 +29,24 @@ if prompt := st.chat_input("Ask anything..."):
   with st.chat_message("assistant"):
     with st.spinner("Thinking..."):
       try:
-        response = client.chat.completions.create(
-            model="meta-llama/Llama-3.2-3B-Instruct",
-            messages=st.session_state.messages,
-            max_tokens=500,
+        payload = {
+            "model": "Qwen/Qwen2.5-7B-Instruct",
+            "messages": st.session_state.messages,
+            "max_tokens": 500,
+        }
+        res = requests.post(
+            API_URL, headers=HEADERS, json=payload, timeout=30
         )
-        reply = response.choices[0].message.content
-        st.markdown(reply)
-        st.session_state.messages.append(
-            {"role": "assistant", "content": reply}
-        )
+
+        if res.status_code != 200:
+          st.error(f"API Status {res.status_code}: {res.text}")
+        else:
+          data = res.json()
+          reply = data["choices"]["message"]["content"]
+          st.markdown(reply)
+          st.session_state.messages.append(
+              {"role": "assistant", "content": reply}
+          )
       except Exception as e:
         st.error(f"Error details: {e}")
 
