@@ -29,7 +29,7 @@ if prompt := st.chat_input("Ask anything..."):
             messages=st.session_state.messages,
             model="openai/gpt-oss-20b",
         )
-        reply = chat_completion.choices.message.content
+        reply = chat_completion.choices[0].message.content
         st.markdown(reply)
         st.session_state.messages.append(
             {"role": "assistant", "content": reply}
