@@ -1,14 +1,10 @@
-import requests
+from groq import Groq
 import streamlit as st
 
 st.set_page_config(page_title="Advanced AI Assistant", page_icon="✦")
 st.title("✦ Advanced AI Assistant")
 
-API_URL = "https://groq.com"
-HEADERS = {
-    "Authorization": f"Bearer {st.secrets['GROQ_API_KEY']}",
-    "Content-Type": "application/json",
-}
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 if "messages" not in st.session_state:
   st.session_state.messages = [{
@@ -29,25 +25,17 @@ if prompt := st.chat_input("Ask anything..."):
   with st.chat_message("assistant"):
     with st.spinner("Thinking..."):
       try:
-        payload = {
-            "model": "llama-3.3-70b-versatile",
-            "messages": st.session_state.messages,
-            "max_tokens": 500,
-        }
-        res = requests.post(
-            API_URL, headers=HEADERS, json=payload, timeout=30
+        chat_completion = client.chat.completions.create(
+            messages=st.session_state.messages,
+            model="llama-3.3-70b-versatile",
         )
-
-        if res.status_code != 200:
-          st.error(f"API Status {res.status_code}: {res.text}")
-        else:
-          data = res.json()
-          reply = data["choices"]["message"]["content"]
-          st.markdown(reply)
-          st.session_state.messages.append(
-              {"role": "assistant", "content": reply}
-          )
+        reply = chat_completion.choices[0].message.content
+        st.markdown(reply)
+        st.session_state.messages.append(
+            {"role": "assistant", "content": reply}
+        )
       except Exception as e:
         st.error(f"Error details: {e}")
+
 
 
