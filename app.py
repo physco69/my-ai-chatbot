@@ -1,52 +1,99 @@
+import base64
+import os
 from groq import Groq
 import streamlit as st
 
-st.set_page_config(page_title="Sumedh's chatbot", page_icon="🏎️")
+st.set_page_config(page_title="Sumedh's chatbot", page_icon="🌄")
 
-# --- REAL BMW M2 STATIC BACKGROUND IMAGE ---
-BMW_IMAGE_URL = (
-    "https://wikimedia.org"
+
+# --- LOAD TIGER HILL SUNSET IMAGE SAFELY ---
+def get_base64_bg(image_path):
+  if os.path.exists(image_path):
+    with open(image_path, "rb") as f:
+      return base64.b64encode(f.read()).decode()
+  return None
+
+
+bg_base64 = get_base64_bg("tigerhill.jpg")
+bg_layer = (
+    f'url("data:image/jpeg;base64,{bg_base64}")'
+    if bg_base64
+    else "linear-gradient(180deg, #1E1B4B 0%, #7C2D12 55%, #090D16 100%)"
 )
 
-static_bg_css = f"""
+# --- FULL VISIBILITY SUNSET THEME & TRANSLUCENT GLASS BUBBLES ---
+mobile_css = f"""
 <style>
-[data-testid="stAppViewContainer"] {{
-    background-image: linear-gradient(rgba(8, 12, 22, 0.62), rgba(8, 12, 22, 0.72)), url("{BMW_IMAGE_URL}");
+/* Pin the Tiger Hill sunset image so it stays visible even as new messages scroll */
+[data-testid="stAppViewContainer"]::before {{
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-image: linear-gradient(rgba(10, 8, 20, 0.18), rgba(10, 8, 20, 0.32)), {bg_layer};
     background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    color: #F8FAFC;
+    background-position: center center;
+    background-repeat: no-repeat;
+    z-index: 0;
+    pointer-events: none;
+}}
+
+[data-testid="stAppViewContainer"] {{
+    background: transparent !important;
+}}
+
+.block-container {{
+    position: relative;
+    z-index: 1;
 }}
 
 [data-testid="stHeader"] {{
-    background: rgba(8, 12, 22, 0.5);
-    backdrop-filter: blur(8px);
+    background: transparent !important;
 }}
 
-[data-testid="stBottom"] {{
-    background: rgba(8, 12, 22, 0.85);
-    backdrop-filter: blur(12px);
+/* Red Clear Button with crisp white text */
+[data-testid="stButton"] button {{
+    background-color: rgba(220, 38, 38, 0.9) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: bold !important;
 }}
 
+/* Translucent frosted-glass bubbles so the sunset shines right through new messages */
 [data-testid="stChatMessage"] {{
-    background: rgba(15, 23, 42, 0.78);
-    border: 1px solid rgba(56, 189, 248, 0.35);
-    border-radius: 16px;
-    padding: 12px 16px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+    background: rgba(15, 12, 28, 0.55) !important;
+    border: 1px solid rgba(251, 146, 60, 0.5) !important;
+    border-radius: 16px !important;
+    padding: 12px 16px !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+}}
+[data-testid="stChatMessage"] p, 
+[data-testid="stChatMessage"] span, 
+[data-testid="stChatMessage"] div {{
+    color: #FFFFFF !important;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+}}
+
+/* See-through bottom input area so the sunset stays visible at the bottom too */
+[data-testid="stBottom"], [data-testid="stBottom"] > div {{
+    background: rgba(10, 8, 20, 0.35) !important;
+    backdrop-filter: blur(6px) !important;
 }}
 
 h1 {{
-    color: #F8FAFC !important;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+    color: #FFFFFF !important;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95);
 }}
 </style>
 """
-st.markdown(static_bg_css, unsafe_allow_html=True)
+st.markdown(mobile_css, unsafe_allow_html=True)
 
 # --- HEADER & CLEAR BUTTON ---
-col1, col2 = st.columns([4, 1])
+col1, col2 = st.columns()
 with col1:
   st.title("Sumedh's chatbot")
 with col2:
@@ -84,10 +131,11 @@ if prompt := st.chat_input("Ask anything..."):
             messages=st.session_state.messages,
             model="openai/gpt-oss-20b",
         )
-        reply = chat_completion.choices[0].message.content
+        reply = chat_completion.choices.message.content
         st.markdown(reply)
         st.session_state.messages.append(
             {"role": "assistant", "content": reply}
         )
       except Exception as e:
         st.error(f"Error details: {e}")
+
