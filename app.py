@@ -24,7 +24,6 @@ bg_layer = (
 # --- FULL VISIBILITY SUNSET THEME & TRANSLUCENT GLASS BUBBLES ---
 mobile_css = f"""
 <style>
-/* Pin the Tiger Hill sunset image so it stays visible even as new messages scroll */
 [data-testid="stAppViewContainer"]::before {{
     content: "";
     position: fixed;
@@ -53,7 +52,6 @@ mobile_css = f"""
     background: transparent !important;
 }}
 
-/* Red Clear Button with crisp white text */
 [data-testid="stButton"] button {{
     background-color: rgba(220, 38, 38, 0.9) !important;
     color: #FFFFFF !important;
@@ -62,7 +60,6 @@ mobile_css = f"""
     font-weight: bold !important;
 }}
 
-/* Translucent frosted-glass bubbles so the sunset shines right through new messages */
 [data-testid="stChatMessage"] {{
     background: rgba(15, 12, 28, 0.55) !important;
     border: 1px solid rgba(251, 146, 60, 0.5) !important;
@@ -78,7 +75,6 @@ mobile_css = f"""
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
 }}
 
-/* See-through bottom input area so the sunset stays visible at the bottom too */
 [data-testid="stBottom"], [data-testid="stBottom"] > div {{
     background: rgba(10, 8, 20, 0.35) !important;
     backdrop-filter: blur(6px) !important;
@@ -131,7 +127,7 @@ if prompt := st.chat_input("Ask anything..."):
             messages=st.session_state.messages,
             model="openai/gpt-oss-20b",
         )
-        reply = chat_completion.choices.message.content
+        reply = chat_completion.choices[0].message.content
         st.markdown(reply)
         st.session_state.messages.append(
             {"role": "assistant", "content": reply}
