@@ -317,4 +317,4 @@ if final_prompt:
 
           st.session_state.messages.append(msg_data)
         except Exception as e:
-    st.error(f"Error details: {e}")
+        st.error(f"Error details: {e}")
