@@ -1,11 +1,15 @@
 import base64
+import io
 import os
+import urllib.parse
+from duckduckgo_search import DDGS
 from groq import Groq
+from gtts import gTTS
 from pypdf import PdfReader
 import streamlit as st
 
 st.set_page_config(
-    page_title="Sumedh's chatbot", page_icon="🌄", layout="centered"
+    page_title="Sumedh's AI Studio", page_icon="🌄", layout="centered"
 )
 
 
@@ -24,7 +28,7 @@ bg_layer = (
     else "linear-gradient(180deg, #1E1B4B 0%, #7C2D12 55%, #090D16 100%)"
 )
 
-# --- FULL VISIBILITY SUNSET THEME & GLASS UI ---
+# --- FULL VISIBILITY SUNSET THEME & HIFI GLASS UI ---
 mobile_css = f"""
 <style>
 [data-testid="stAppViewContainer"]::before {{
@@ -34,7 +38,7 @@ mobile_css = f"""
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-image: linear-gradient(rgba(10, 8, 20, 0.18), rgba(10, 8, 20, 0.35)), {bg_layer};
+    background-image: linear-gradient(rgba(10, 8, 20, 0.16), rgba(10, 8, 20, 0.34)), {bg_layer};
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;
@@ -56,23 +60,26 @@ mobile_css = f"""
 }}
 
 [data-testid="stSidebar"] {{
-    background: rgba(12, 10, 24, 0.88) !important;
-    backdrop-filter: blur(12px) !important;
+    background: rgba(12, 10, 24, 0.90) !important;
+    backdrop-filter: blur(14px) !important;
 }}
 [data-testid="stSidebar"] * {{
     color: #F8FAFC !important;
 }}
 
+/* Styled Action Buttons */
 [data-testid="stButton"] button {{
-    background-color: rgba(220, 38, 38, 0.9) !important;
+    background: rgba(251, 146, 60, 0.25) !important;
     color: #FFFFFF !important;
-    border: none !important;
-    border-radius: 10px !important;
-    font-weight: bold !important;
+    border: 1px solid rgba(251, 146, 60, 0.6) !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    backdrop-filter: blur(6px) !important;
 }}
 
+/* Translucent frosted-glass bubbles */
 [data-testid="stChatMessage"] {{
-    background: rgba(15, 12, 28, 0.58) !important;
+    background: rgba(15, 12, 28, 0.56) !important;
     border: 1px solid rgba(251, 146, 60, 0.5) !important;
     border-radius: 16px !important;
     padding: 12px 16px !important;
@@ -88,7 +95,7 @@ mobile_css = f"""
 }}
 
 [data-testid="stBottom"], [data-testid="stBottom"] > div {{
-    background: rgba(10, 8, 20, 0.4) !important;
+    background: rgba(10, 8, 20, 0.42) !important;
     backdrop-filter: blur(6px) !important;
 }}
 
@@ -123,11 +130,11 @@ PERSONAS = {
 
 # --- SIDEBAR CONTROL CENTER ---
 with st.sidebar:
-  st.header("⚙️ Control Center")
+  st.header("⚙️ Hi-Fi Control Center")
 
-  selected_persona = st.selectbox("Choose AI Mode", list(PERSONAS.keys()))
+  selected_persona = st.selectbox("🎭 AI Personality", list(PERSONAS.keys()))
   selected_model = st.selectbox(
-      "AI Brain Speed/Power",
+      "🧠 AI Brain Model",
       [
           "openai/gpt-oss-20b",
           "openai/gpt-oss-120b",
@@ -136,9 +143,14 @@ with st.sidebar:
   )
 
   st.divider()
-  st.subheader("📎 Attach Photo or PDF")
+  st.subheader("🚀 Superpowers")
+  web_search_enabled = st.toggle("🌐 Live Web Search", value=True)
+  voice_reply_enabled = st.toggle("🔊 AI Voice Reply (Speak)", value=False)
+
+  st.divider()
+  st.subheader("📎 Vision & PDF Reader")
   uploaded_file = st.file_uploader(
-      "Upload image or document", type=["png", "jpg", "jpeg", "pdf", "txt"]
+      "Upload photo or PDF", type=["png", "jpg", "jpeg", "pdf", "txt"]
   )
 
   st.divider()
@@ -158,24 +170,48 @@ with st.sidebar:
         use_container_width=True,
     )
 
-# --- MAIN HEADER ---
+# --- HEADER & QUICK ACTION CHIPS ---
 st.title("Sumedh's chatbot")
 
 if "messages" not in st.session_state:
   st.session_state.messages = []
 
+# Quick tap prompt buttons when chat is fresh
+quick_prompt = None
+if len(st.session_state.messages) == 0:
+  c1, c2, c3 = st.columns(3)
+  with c1:
+    if st.button("📰 Today's News", use_container_width=True):
+      quick_prompt = "Give me the top 5 world and tech news headlines today."
+  with c2:
+    if st.button("🎨 Draw BMW M2", use_container_width=True):
+      quick_prompt = (
+          "/imagine futuristic blue BMW M2 drifting on a mountain road at"
+          " sunset, 8k photorealistic"
+      )
+  with c3:
+    if st.button("💡 Python Idea", use_container_width=True):
+      quick_prompt = (
+          "Give me 3 cool Python project ideas I can build this weekend."
+      )
+
 # Display conversation history
 for msg in st.session_state.messages:
   with st.chat_message(msg["role"]):
     st.markdown(msg["content"])
+    if "image" in msg:
+      st.image(msg["image"], use_container_width=True)
+    if "audio" in msg:
+      st.audio(msg["audio"], format="audio/mp3")
 
-# --- VOICE INPUT & TEXT INPUT ---
-audio_value = st.audio_input("🎙️ Speak to Sumedh's AI (Optional)")
-text_prompt = st.chat_input("Ask anything or describe your uploaded file...")
+# --- VOICE MIC & TEXT INPUT ---
+audio_value = st.audio_input("🎙️ Speak to Sumedh's AI")
+text_prompt = st.chat_input(
+    "Ask anything, search the web, or type /imagine <prompt>..."
+)
 
-final_prompt = None
+final_prompt = quick_prompt
 
-# Transcribe voice input using Groq Whisper if user recorded audio
 if audio_value is not None:
   if (
       "last_audio" not in st.session_state
@@ -202,75 +238,102 @@ if final_prompt:
     st.markdown(final_prompt)
 
   with st.chat_message("assistant"):
-    with st.spinner("Thinking..."):
-      try:
-        api_messages = [
-            {"role": "system", "content": PERSONAS[selected_persona]}
-        ]
-
-        # Add conversation memory (last 10 turns)
-        for m in st.session_state.messages[-10:-1]:
-          api_messages.append({"role": m["role"], "content": m["content"]})
-
-        # Handle Image Vision or PDF Document Context if attached
-        if uploaded_file is not None:
-          file_type = uploaded_file.type
-
-          if "image" in file_type:
-            img_b64 = base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
-            api_messages.append({
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": final_prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{file_type};base64,{img_b64}"
-                        },
-                    },
-                ],
-            })
-            active_model = "meta-llama/llama-4-scout-17b-16e-instruct"
-
-          elif "pdf" in file_type:
-            reader = PdfReader(uploaded_file)
-            pdf_text = "\n".join(
-                [page.extract_text() or "" for page in reader.pages]
-            )[:12000]
-            api_messages.append({
-                "role": "user",
-                "content": (
-                    f"Document Content:\n{pdf_text}\n\nUser Question:"
-                    f" {final_prompt}"
-                ),
-            })
-            active_model = selected_model
-
-          else:
-            txt_content = uploaded_file.getvalue().decode("utf-8")[:12000]
-            api_messages.append({
-                "role": "user",
-                "content": (
-                    f"File Content:\n{txt_content}\n\nUser Question:"
-                    f" {final_prompt}"
-                ),
-            })
-            active_model = selected_model
-        else:
-          api_messages.append({"role": "user", "content": final_prompt})
-          active_model = selected_model
-
-        chat_completion = client.chat.completions.create(
-            messages=api_messages, model=active_model, max_tokens=1024
-        )
-        reply = chat_completion.choices[0].message.content
-        st.markdown(reply)
+    # 1. AI IMAGE GENERATOR MODE (/imagine ...)
+    if final_prompt.lower().startswith("/imagine"):
+      img_prompt = final_prompt[8:].strip() or "sunset over Tiger Hill"
+      with st.spinner("Generating AI artwork..."):
+        encoded = urllib.parse.quote(img_prompt)
+        img_url = f"https://pollinations.ai{encoded}?width=1024&height=768&nologo=true"
+        reply_text = f"🎨 Generated image for: **{img_prompt}**"
+        st.markdown(reply_text)
+        st.image(img_url, use_container_width=True)
         st.session_state.messages.append(
-            {"role": "assistant", "content": reply}
+            {"role": "assistant", "content": reply_text, "image": img_url}
         )
 
-      except Exception as e:
-        st.error(f"Error details: {e}")
+    # 2. STANDARD + WEB SEARCH + VISION + VOICE REPLY MODE
+    else:
+      with st.spinner("Thinking..."):
+        try:
+          system_content = PERSONAS[selected_persona]
 
+          # Live Web Search injection if enabled and no file attached
+          if web_search_enabled and uploaded_file is None:
+            try:
+              with DDGS() as ddgs:
+                results = list(ddgs.text(final_prompt, max_results=3))
+              if results:
+                web_context = "\n".join(
+                    [f"- {r['title']}: {r['body']}" for r in results]
+                )
+                system_content += (
+                    "\n\nUse these live web search results if helpful for"
+                    f" up-to-date facts:\n{web_context}"
+                )
+            except Exception:
+              pass
 
+          api_messages = [{"role": "system", "content": system_content}]
+          for m in st.session_state.messages[-10:-1]:
+            api_messages.append({"role": m["role"], "content": m["content"]})
 
+          if uploaded_file is not None:
+            file_type = uploaded_file.type
+            if "image" in file_type:
+              img_b64 = base64.b64encode(uploaded_file.getvalue()).decode(
+                  "utf-8"
+              )
+              api_messages.append({
+                  "role": "user",
+                  "content": [
+                      {"type": "text", "text": final_prompt},
+                      {
+                          "type": "image_url",
+                          "image_url": {
+                              "url": f"data:{file_type};base64,{img_b64}"
+                          },
+                      },
+                  ],
+              })
+              active_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+            elif "pdf" in file_type:
+              reader = PdfReader(uploaded_file)
+              pdf_text = "\n".join(
+                  [page.extract_text() or "" for page in reader.pages]
+              )[:12000]
+              api_messages.append({
+                  "role": "user",
+                  "content": (
+                      f"Document:\n{pdf_text}\n\nQuestion: {final_prompt}"
+                  ),
+              })
+              active_model = selected_model
+            else:
+              txt_content = uploaded_file.getvalue().decode("utf-8")[:12000]
+              api_messages.append({
+                  "role": "user",
+                  "content": (
+f"File:\n{txt_content}\n\nQuestion: {final_prompt}"
+),
+})
+active_model = selected_model
+else:
+api_messages.append({"role": "user", "content": final_prompt})
+active_model = selected_model
+chat_completion = client.chat.completions.create(
+messages=api_messages, model=active_model, max_tokens=1024
+)
+reply = chat_completion.choices.message.content
+st.markdown(reply)
+msg_data = {"role": "assistant", "content": reply}
+# Generate Spoken Audio Reply if enabled in Control Center
+if voice_reply_enabled:
+tts = gTTS(text=reply[:600], lang="en")
+audio_fp = io.BytesIO()
+tts.write_to_fp(audio_fp)
+audio_bytes = audio_fp.getvalue()
+st.audio(audio_bytes, format="audio/mp3", autoplay=True)
+msg_data["audio"] = audio_bytes
+st.session_state.messages.append(msg_data)
+except Exception as e:
+st.error(f"Error details: {e}")
