@@ -181,7 +181,50 @@ def generate_ai_reply(
   return completion.choices[0].message.content
 
 
-# --- SIDEBAR CONTROL CENTER ---
+def process_chat(
+    prompt_text, persona_prompt, model_choice, use_web, use_voice, attachment
+):
+  st.session_state.messages.append({"role": "user", "content": prompt_text})
+  with st.chat_message("user"):
+    st.markdown(prompt_text)
+
+  with st.chat_message("assistant"):
+    if prompt_text.lower().startswith("/imagine"):
+      img_prompt = prompt_text[8:].strip() or "sunset over Tiger Hill"
+      with st.spinner("Generating AI artwork..."):
+        encoded = urllib.parse.quote(img_prompt)
+        img_url = f"https://pollinations.ai{encoded}?width=1024&height=768&nologo=true"
+        reply_text = f"🎨 Generated image for: **{img_prompt}**"
+        st.markdown(reply_text)
+        st.image(img_url, use_container_width=True)
+        st.session_state.messages.append(
+            {"role": "assistant", "content": reply_text, "image": img_url}
+        )
+      return
+
+    with st.spinner("Thinking..."):
+      reply = generate_ai_reply(
+          prompt_text,
+          st.session_state.messages,
+          persona_prompt,
+          model_choice,
+          use_web,
+          attachment,
+      )
+      st.markdown(reply)
+      msg_data = {"role": "assistant", "content": reply}
+
+      if use_voice:
+        tts = gTTS(text=reply[:600], lang="en")
+        audio_fp = io.BytesIO()
+        tts.write_to_fp(audio_fp)
+        audio_bytes = audio_fp.getvalue()
+        st.audio(audio_bytes, format="audio/mp3", autoplay=True)
+        msg_data["audio"] = audio_bytes
+
+      st.session_state.messages.append(msg_data)
+
+
 with st.sidebar:
   st.header("⚙️ Hi-Fi Control Center")
   selected_persona = st.selectbox("🎭 AI Personality", list(PERSONAS.keys()))
@@ -218,7 +261,6 @@ with st.sidebar:
         use_container_width=True,
     )
 
-# --- MAIN HEADER & QUICK ACTION CHIPS ---
 st.title("Sumedh's chatbot")
 
 if "messages" not in st.session_state:
@@ -264,55 +306,21 @@ if audio_value is not None:
   ):
     st.session_state.last_audio = audio_value.getvalue()
     with st.spinner("Transcribing voice..."):
-      try:
-        transcription = client.audio.transcriptions.create(
-            file=("voice.wav", audio_value.getvalue()),
-            model="whisper-large-v3-turbo",
-        )
-        final_prompt = transcription.text
-      except Exception as e:
-        st.error(f"Voice Error: {e}")
+      transcription = client.audio.transcriptions.create(
+          file=("voice.wav", audio_value.getvalue()),
+          model="whisper-large-v3-turbo",
+      )
+      final_prompt = transcription.text
 
 if text_prompt:
   final_prompt = text_prompt
 
 if final_prompt:
-  st.session_state.messages.append({"role": "user", "content": final_prompt})
-  with st.chat_message("user"):
-    st.markdown(final_prompt)
-
-  with st.chat_message("assistant"):
-    if final_prompt.lower().startswith("/imagine"):
-      img_prompt = final_prompt[8:].strip() or "sunset over Tiger Hill"
-      with st.spinner("Generating AI artwork..."):
-        encoded = urllib.parse.quote(img_prompt)
-        img_url = f"https://pollinations.ai{encoded}?width=1024&height=768&nologo=true"
-        reply_text = f"🎨 Generated image for: **{img_prompt}**"
-        st.markdown(reply_text)
-        st.image(img_url, use_container_width=True)
-        st.session_state.messages.append(
-            {"role": "assistant", "content": reply_text, "image": img_url}
-        )
-    else:
-      with st.spinner("Thinking..."):
-        try:
-          reply = generate_ai_reply(
-              final_prompt,
-              st.session_state.messages,
-              PERSONAS[selected_persona],
-              selected_model,
-              web_search_enabled,
-              uploaded_file,
-          )
-          st.markdown(reply)
-          msg_data = {"role": "assistant", "content": reply}
-
-          if voice_reply_enabled:
-            tts = gTTS(text=reply[:600], lang="en")
-            audio_fp = io.BytesIO()
-            tts.write_to_fp(audio_fp)
-            audio_bytes = audio_fp.getvalue()
-            st.audio(audio_bytes, format="audio/mp3", autoplay=True)
-            msg_data["audio"] = audio_bytes
-
-       
+  process_chat(
+      final_prompt,
+      PERSONAS[selected_persona],
+      selected_model,
+      web_search_enabled,
+      voice_reply_enabled,
+      uploaded_file,
+  )
