@@ -178,7 +178,7 @@ def generate_ai_reply(
   completion = client.chat.completions.create(
       messages=api_messages, model=active_model, max_tokens=1024
   )
-  return completion.choices.message.content
+  return completion.choices[0].message.content
 
 
 # --- SIDEBAR CONTROL CENTER ---
@@ -315,6 +315,4 @@ if final_prompt:
             st.audio(audio_bytes, format="audio/mp3", autoplay=True)
             msg_data["audio"] = audio_bytes
 
-          st.session_state.messages.append(msg_data)
-        except Exception as e:
-        st.error(f"Error details: {e}")
+       
