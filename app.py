@@ -67,7 +67,6 @@ mobile_css = f"""
     color: #F8FAFC !important;
 }}
 
-/* Styled Action Buttons */
 [data-testid="stButton"] button {{
     background: rgba(251, 146, 60, 0.25) !important;
     color: #FFFFFF !important;
@@ -77,7 +76,6 @@ mobile_css = f"""
     backdrop-filter: blur(6px) !important;
 }}
 
-/* Translucent frosted-glass bubbles */
 [data-testid="stChatMessage"] {{
     background: rgba(15, 12, 28, 0.56) !important;
     border: 1px solid rgba(251, 146, 60, 0.5) !important;
@@ -176,7 +174,6 @@ st.title("Sumedh's chatbot")
 if "messages" not in st.session_state:
   st.session_state.messages = []
 
-# Quick tap prompt buttons when chat is fresh
 quick_prompt = None
 if len(st.session_state.messages) == 0:
   c1, c2, c3 = st.columns(3)
@@ -238,7 +235,6 @@ if final_prompt:
     st.markdown(final_prompt)
 
   with st.chat_message("assistant"):
-    # 1. AI IMAGE GENERATOR MODE (/imagine ...)
     if final_prompt.lower().startswith("/imagine"):
       img_prompt = final_prompt[8:].strip() or "sunset over Tiger Hill"
       with st.spinner("Generating AI artwork..."):
@@ -250,14 +246,11 @@ if final_prompt:
         st.session_state.messages.append(
             {"role": "assistant", "content": reply_text, "image": img_url}
         )
-
-    # 2. STANDARD + WEB SEARCH + VISION + VOICE REPLY MODE
     else:
       with st.spinner("Thinking..."):
         try:
           system_content = PERSONAS[selected_persona]
 
-          # Live Web Search injection if enabled and no file attached
           if web_search_enabled and uploaded_file is None:
             try:
               with DDGS() as ddgs:
@@ -313,20 +306,21 @@ if final_prompt:
               api_messages.append({
                   "role": "user",
                   "content": (
-f"File:\n{txt_content}\n\nQuestion: {final_prompt}"
-),
-})
-active_model = selected_model
-else:
-api_messages.append({"role": "user", "content": final_prompt})
-active_model = selected_model
+                      f"File:\n{txt_content}\n\nQuestion: {final_prompt}"
+                  ),
+              })
+              active_model = selected_model
+          else:
+            api_messages.append({"role": "user", "content": final_prompt})
+            active_model = selected_model
+
+
 chat_completion = client.chat.completions.create(
 messages=api_messages, model=active_model, max_tokens=1024
 )
-reply = chat_completion.choices.message.content
+reply = chat_completion.choices[0].message.content
 st.markdown(reply)
 msg_data = {"role": "assistant", "content": reply}
-# Generate Spoken Audio Reply if enabled in Control Center
 if voice_reply_enabled:
 tts = gTTS(text=reply[:600], lang="en")
 audio_fp = io.BytesIO()
