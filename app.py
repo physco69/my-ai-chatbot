@@ -263,7 +263,7 @@ if final_prompt:
         chat_completion = client.chat.completions.create(
             messages=api_messages, model=active_model, max_tokens=1024
         )
-        reply = chat_completion.choices.message.content
+        reply = chat_completion.choices[0].message.content
         st.markdown(reply)
         st.session_state.messages.append(
             {"role": "assistant", "content": reply}
